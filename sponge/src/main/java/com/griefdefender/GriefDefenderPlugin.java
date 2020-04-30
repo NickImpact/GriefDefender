@@ -527,7 +527,8 @@ public class GriefDefenderPlugin {
             return;
         }
 
-        if (Sponge.getPluginManager().getPlugin("dynmap").isPresent()) {
+        if (Sponge.getPluginManager().getPlugin("dynmap").isPresent()
+                && GriefDefenderPlugin.getGlobalConfig().getConfig().dynmap.enabled) {
             this.dynmapProvider = new DynmapProvider();
         }
         if (Sponge.getPluginManager().getPlugin("mcclans").isPresent()) {
@@ -573,7 +574,7 @@ public class GriefDefenderPlugin {
         int cleanupTaskInterval = GriefDefenderPlugin.getGlobalConfig().getConfig().claim.expirationCleanupInterval;
         if (cleanupTaskInterval > 0) {
             ClaimCleanupTask cleanupTask = new ClaimCleanupTask();
-            Sponge.getScheduler().createTaskBuilder().interval(10, TimeUnit.SECONDS).execute(cleanupTask)
+            Sponge.getScheduler().createTaskBuilder().interval(cleanupTaskInterval, TimeUnit.SECONDS).execute(cleanupTask)
                     .submit(GDBootstrap.getInstance());
         }
     }

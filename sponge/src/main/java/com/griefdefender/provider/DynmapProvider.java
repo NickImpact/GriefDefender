@@ -37,12 +37,11 @@ import com.griefdefender.api.event.ChangeClaimEvent;
 import com.griefdefender.api.event.CreateClaimEvent;
 import com.griefdefender.api.event.RemoveClaimEvent;
 import com.griefdefender.claim.GDClaim;
-import com.griefdefender.configuration.category.DynmapOwnerStyleCategory;
 import com.griefdefender.configuration.category.DynmapCategory;
+import com.griefdefender.configuration.category.DynmapOwnerStyleCategory;
 import com.griefdefender.util.PlayerUtil;
-
+import net.kyori.event.method.annotation.Subscribe;
 import net.kyori.text.serializer.plain.PlainComponentSerializer;
-
 import org.dynmap.DynmapCommonAPI;
 import org.dynmap.DynmapCommonAPIListener;
 import org.dynmap.markers.AreaMarker;
@@ -50,8 +49,6 @@ import org.dynmap.markers.MarkerAPI;
 import org.dynmap.markers.MarkerSet;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.Order;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.world.World;
 
@@ -83,11 +80,6 @@ public class DynmapProvider {
                 activate();
             }
         });
-        if (this.markerapi == null) {
-            this.logger.error("Error loading Dynmap Provider! Could not locate Marker API.");
-            return;
-        }
-        GriefDefender.getEventManager().register(this);
     }
 
     private Map<String, AreaMarker> areaMarkers = new HashMap<String, AreaMarker>();
@@ -280,6 +272,7 @@ public class DynmapProvider {
     private void activate() {
         this.markerapi = this.dynmap.getMarkerAPI();
         if (this.markerapi == null) {
+            this.logger.error("Error loading Dynmap Provider! Could not locate Marker API.");
             return;
         }
         if (this.reload) {
@@ -313,6 +306,7 @@ public class DynmapProvider {
         this.set.setHideByDefault(this.cfg.layerHideByDefault);
 
         new GriefDefenderUpdate(40L);
+        GriefDefender.getEventManager().register(this);
         this.logger.info("Dynmap provider is activated");
     }
 
@@ -341,17 +335,17 @@ public class DynmapProvider {
         }
     }
 
-    @Listener(order = Order.POST)
+    @Subscribe
     public void onClaimCreate(CreateClaimEvent event) {
         new GriefDefenderUpdate(20L);
     }
 
-    @Listener(order = Order.POST)
+    @Subscribe
     public void onClaimDelete(RemoveClaimEvent event) {
         new GriefDefenderUpdate(20L);
     }
 
-    @Listener(order = Order.POST)
+    @Subscribe
     public void onClaimChange(ChangeClaimEvent event) {
         new GriefDefenderUpdate(20L);
     }
