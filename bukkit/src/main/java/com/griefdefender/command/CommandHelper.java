@@ -191,10 +191,6 @@ public class CommandHelper {
             return true;
         }
 
-        /*Optional<BlockState> blockState = Sponge.getRegistry().getType(BlockState.class, target);
-        if (blockState.isPresent()) {
-            return true;
-        }*/
         return false;
     }
 
@@ -230,22 +226,8 @@ public class CommandHelper {
                 if (parts.length == 1) {
                     addFlagContexts(contexts, flag, target);
                 } else if (parts.length > 1 && !parts[1].equalsIgnoreCase("any")) {
-                    // check for meta
-                    parts = target.split("\\.");
-                    String targetId = parts[0];
-                    /*if (parts.length > 1) {
-                        try {
-                            Integer.parseInt(parts[1]);
-                        } catch (NumberFormatException e) {
-                            final Component message = GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.PERMISSION_CLAIM_MANAGE, ImmutableMap.of(
-                                    "meta", parts[1],
-                                    "flag", flag.getName().toLowerCase()));
-                            GriefDefenderPlugin.sendMessage(src, message);
-                            return new GDPermissionResult(ResultTypes.TARGET_NOT_VALID);
-                        }
-                    }*/
-                    addFlagContexts(contexts, flag, targetId);
-                    if (!targetId.contains("#") && !CommandHelper.validateFlagTarget(flag, targetId)) {
+                    addFlagContexts(contexts, flag, target);
+                    if (!target.contains("#") && !CommandHelper.validateFlagTarget(flag, target)) {
                         return new GDPermissionResult(ResultTypes.TARGET_NOT_VALID);
                     }
                 }
@@ -992,6 +974,12 @@ public class CommandHelper {
             }
 
             final Player player = (Player) src;
+            // check if world is loaded
+            if (Bukkit.getWorld(location.getWorld().getUID()) == null) {
+                TextAdapter.sendComponent(player, MessageCache.getInstance().TELEPORT_NO_SAFE_LOCATION);
+                return;
+            }
+
             final GDPlayerData playerData = GriefDefenderPlugin.getInstance().dataStore.getPlayerData(player.getWorld(), player.getUniqueId());
             final int teleportDelay = GDPermissionManager.getInstance().getInternalOptionValue(TypeToken.of(Integer.class), player, Options.PLAYER_TELEPORT_DELAY, claim);
             if (isClaimSpawn) {

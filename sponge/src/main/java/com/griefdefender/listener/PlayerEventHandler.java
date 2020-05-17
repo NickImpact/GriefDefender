@@ -213,7 +213,7 @@ public class PlayerEventHandler {
         // check for command input
         if (playerData.isWaitingForInput()) {
             playerData.commandInput = event.getRawMessage().toPlain();
-            playerData.trustAddConsumer.accept(player);
+            playerData.commandConsumer.accept(player);
             event.setCancelled(true);
             return;
         }
@@ -240,7 +240,7 @@ public class PlayerEventHandler {
             Text footer = event.getFormatter().getFooter().toText();
             Text townMessage = Text.of(TextColors.GREEN, body);
             if (townTag != null) {
-                townMessage = Text.of(townTag, townMessage);
+                townMessage = Text.of(SpongeUtil.getSpongeText(townTag), townMessage);
             }
             event.setMessage(townMessage);
             Set<CommandSource> recipientsToRemove = new HashSet<>();
@@ -729,7 +729,7 @@ public class PlayerEventHandler {
                     return;
                 }
                 // If pet protection is enabled, deny the interaction
-                if (GriefDefenderPlugin.getActiveConfig(player.getWorld().getProperties()).getConfig().claim.protectedTamedEntities) {
+                if (GriefDefenderPlugin.getActiveConfig(player.getWorld().getProperties()).getConfig().claim.protectTamedEntities) {
                     final GDPermissionUser user = PermissionHolderCache.getInstance().getOrCreateUser(ownerID);
                     final Component message = GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.CLAIM_PROTECTED_ENTITY,
                             ImmutableMap.of(
@@ -796,7 +796,7 @@ public class PlayerEventHandler {
                     return;
                 }
                 // If pet protection is enabled, deny the interaction
-                if (GriefDefenderPlugin.getActiveConfig(player.getWorld().getProperties()).getConfig().claim.protectedTamedEntities) {
+                if (GriefDefenderPlugin.getActiveConfig(player.getWorld().getProperties()).getConfig().claim.protectTamedEntities) {
                     final GDPermissionUser user = PermissionHolderCache.getInstance().getOrCreateUser(ownerID);
                     final Component message = GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.CLAIM_PROTECTED_ENTITY,
                             ImmutableMap.of(
@@ -1149,7 +1149,7 @@ public class PlayerEventHandler {
 
         if (playerData.claimMode || (!itemInHand.isEmpty() && (itemInHand.getType().equals(GriefDefenderPlugin.getInstance().modificationTool.getType()) ||
                 itemInHand.getType().equals(GriefDefenderPlugin.getInstance().investigationTool.getType())))) {
-            GDPermissionManager.getInstance().addEventLogEntry(event, location, itemInHand, blockSnapshot == null ? entity : blockSnapshot, player, flag, null, Tristate.TRUE);
+            GDPermissionManager.getInstance().addEventLogEntry(event, claim, location, itemInHand, blockSnapshot == null ? entity : blockSnapshot, player, flag, null, Tristate.TRUE);
             event.setCancelled(true);
             if (investigateClaim(event, player, blockSnapshot, itemInHand)) {
                 return event;
@@ -1167,7 +1167,7 @@ public class PlayerEventHandler {
             return event;
         }
 
-        if (GDPermissionManager.getInstance().getFinalPermission(event, location, claim, flag, player, itemType, player, TrustTypes.ACCESSOR, true) == Tristate.FALSE) {
+        if (GDPermissionManager.getInstance().getFinalPermission(event, location, claim, flag, player, itemInHand, player, TrustTypes.ACCESSOR, true) == Tristate.FALSE) {
             Component message = GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.PERMISSION_INTERACT_ITEM,
                     ImmutableMap.of(
                     "player", claim.getOwnerName(),
@@ -1323,6 +1323,7 @@ public class PlayerEventHandler {
     }
 
     private void createClaimStart(InteractEvent event, Player player, ItemStack itemInHand, Location<World> location, GDPlayerData playerData, GDClaim claim) {
+        final ClaimType type = PlayerUtil.getInstance().getClaimTypeFromShovel(playerData.shovelMode);
         if (!player.hasPermission(GDPermissions.BYPASS_CLAIM_LIMIT)) {
             int createClaimLimit = -1;
             if (playerData.shovelMode == ShovelTypes.BASIC && (claim.isAdminClaim() || claim.isTown() || claim.isWilderness())) {
@@ -1333,7 +1334,7 @@ public class PlayerEventHandler {
                 createClaimLimit = GDPermissionManager.getInstance().getInternalOptionValue(TypeToken.of(Integer.class), player, Options.CREATE_LIMIT, claim).intValue();
             }
 
-            if (createClaimLimit > 0 && createClaimLimit < (playerData.getInternalClaims().size() + 1)) {
+            if (createClaimLimit > 0 && createClaimLimit < (playerData.getClaimTypeCount(type) + 1)) {
                 GriefDefenderPlugin.sendMessage(player, GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.CREATE_FAILED_CLAIM_LIMIT));
                 return;
             }
@@ -1361,7 +1362,6 @@ public class PlayerEventHandler {
             return;
         }
 
-        final ClaimType type = PlayerUtil.getInstance().getClaimTypeFromShovel(playerData.shovelMode);
         if ((type == ClaimTypes.BASIC || type == ClaimTypes.TOWN) && GriefDefenderPlugin.getGlobalConfig().getConfig().economy.economyMode) {
             // Check current economy mode cost
             final Double economyBlockCost = playerData.getInternalEconomyBlockCost();

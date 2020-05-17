@@ -64,6 +64,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TNTPrimed;
@@ -113,12 +114,12 @@ public class EntityEventHandler implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityBlockFormEvent(EntityBlockFormEvent event) {
-        CommonBlockEventHandler.getInstance().handleBlockPlace(event, event.getEntity(), event.getBlock());
+        CommonBlockEventHandler.getInstance().handleBlockPlace(event, event.getEntity(), event.getNewState());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityBreakDoorEvent(EntityBreakDoorEvent event) {
-        CommonBlockEventHandler.getInstance().handleBlockBreak(event, event.getEntity(), event.getBlock());
+        CommonBlockEventHandler.getInstance().handleBlockBreak(event, event.getEntity(), event.getBlock().getState());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -138,9 +139,6 @@ public class EntityEventHandler implements Listener {
 
         final Location location = block.getLocation();
         final GDClaim targetClaim = this.baseStorage.getClaimAt(location);
-        if (targetClaim.isWilderness()) {
-            return;
-        }
 
         final Entity source = event.getEntity();
         GDPermissionUser user = null;
@@ -306,6 +304,9 @@ public class EntityEventHandler implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityDamage(EntityDamageByBlockEvent event) {
+        if (event.getCause() == DamageCause.SUFFOCATION) {
+            return;
+        }
         GDTimings.ENTITY_DAMAGE_EVENT.startTiming();
         if (protectEntity(event, event.getDamager(), event.getEntity())) {
             event.setCancelled(true);
@@ -353,6 +354,12 @@ public class EntityEventHandler implements Listener {
                         event.setCancelled(true);
                         return;
                     }
+                } else {
+                    // always allow owner to damage their untamed animals
+                    final GDClaim claim = this.baseStorage.getClaimAt(event.getEntity().getLocation());
+                    if (player.getUniqueId().equals(claim.getOwnerUniqueId())) {
+                        return;
+                    }
                 }
             }
         }
@@ -366,6 +373,13 @@ public class EntityEventHandler implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityDamage(EntityDamageEvent event) {
+        if (event instanceof EntityDamageByEntityEvent) {
+            // Ignore as this is handled above
+            return;
+        }
+        if (event.getCause() == DamageCause.SUFFOCATION || event.getCause() == DamageCause.SUICIDE) {
+            return;
+        }
         GDTimings.ENTITY_DAMAGE_EVENT.startTiming();
         if (protectEntity(event, event.getCause(), event.getEntity())) {
             event.setCancelled(true);
@@ -465,11 +479,21 @@ public class EntityEventHandler implements Listener {
                 }
             }
         }
+
+        // Always allow damage against monsters
         if (!GriefDefenderPlugin.isEntityProtected(targetEntity)) {
             return false;
         }
 
         final TrustType trustType = TrustTypes.BUILDER;
+        if (projectileSource != null && projectileSource instanceof Monster) {
+            // check monster source damage first
+            final Tristate result = GDPermissionManager.getInstance().getFinalPermission(event, targetEntity.getLocation(), claim, flag, projectileSource, targetEntity, user, trustType, true);
+            if (result != Tristate.UNDEFINED) {
+                return !result.asBoolean();
+            }
+        }
+
         if (GDPermissionManager.getInstance().getFinalPermission(event, targetEntity.getLocation(), claim, flag, source, targetEntity, user, trustType, true) == Tristate.FALSE) {
             if (source != null && source instanceof Player) {
                 final Player player = (Player) source;
@@ -491,15 +515,7 @@ public class EntityEventHandler implements Listener {
                 return false;
             }
 
-            if (GDPermissionManager.getInstance().getFinalPermission(event, targetEntity.getLocation(), claim, flag, source, targetEntity, user, trustType, true) == Tristate.FALSE) {
-                return true;
-            }
-
             return false;
-        }
-
-        if (GDPermissionManager.getInstance().getFinalPermission(event, targetEntity.getLocation(), claim, flag, source, targetEntity, user, trustType, true) == Tristate.FALSE) {
-            return true;
         }
 
         return false;
@@ -630,6 +646,9 @@ public class EntityEventHandler implements Listener {
                 user = CauseContextHelper.getEventUser(sourceLocation);
             } else if (source instanceof Player) {
                 user = PermissionHolderCache.getInstance().getOrCreateUser((Player) source);
+            } else if (source instanceof Block) {
+                sourceLocation = ((Block) source).getLocation();
+                user = CauseContextHelper.getEventUser(sourceLocation);
             }
         }
 

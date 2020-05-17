@@ -625,6 +625,22 @@ public class PlayerEventHandler implements Listener {
         }
 
         GDTimings.PLAYER_INTERACT_BLOCK_SECONDARY_EVENT.stopTiming();
+
+        if (event instanceof PlayerBucketEmptyEvent) {
+            // check block place
+            result = GDPermissionManager.getInstance().getFinalPermission(event, location, claim, Flags.BLOCK_PLACE, source, event.getBucket().name().toLowerCase().replace("_bucket", ""), player, TrustTypes.BUILDER, true);
+            if (result == Tristate.FALSE) {
+                event.setCancelled(true);
+                return;
+            }
+        } else if (event instanceof PlayerBucketFillEvent) {
+            // check block break
+            result = GDPermissionManager.getInstance().getFinalPermission(event, location, claim, Flags.BLOCK_BREAK, source, event.getBlockClicked(), player, TrustTypes.BUILDER, true);
+            if (result == Tristate.FALSE) {
+                event.setCancelled(true);
+                return;
+            }
+        }
     }
 
     public void onPlayerInteractBlockPrimary(PlayerInteractEvent event, Player player) {
@@ -642,7 +658,7 @@ public class PlayerEventHandler implements Listener {
         final ItemStack itemInHand = event.getItem();
         final Location location = clickedBlock == null ? null : clickedBlock.getLocation();
         final GDPlayerData playerData = this.dataStore.getOrCreateGlobalPlayerData(player.getUniqueId());
-        final Object source = itemInHand != null ? itemInHand : player;
+        final Object source = itemInHand != null && !event.isBlockInHand() ? itemInHand : player;
         if (playerData.claimMode) {
             return;
         }
@@ -1055,6 +1071,7 @@ public class PlayerEventHandler implements Listener {
             return;
         }
 
+        final ClaimType type = PlayerUtil.getInstance().getClaimTypeFromShovel(playerData.shovelMode);
         if (!player.hasPermission(GDPermissions.BYPASS_CLAIM_LIMIT)) {
             int createClaimLimit = -1;
             if (playerData.shovelMode == ShovelTypes.BASIC && (claim.isAdminClaim() || claim.isTown() || claim.isWilderness())) {
@@ -1065,7 +1082,7 @@ public class PlayerEventHandler implements Listener {
                 createClaimLimit = GDPermissionManager.getInstance().getInternalOptionValue(TypeToken.of(Integer.class), player, Options.CREATE_LIMIT, claim).intValue();
             }
 
-            if (createClaimLimit > 0 && createClaimLimit < (playerData.getInternalClaims().size() + 1)) {
+            if (createClaimLimit > 0 && createClaimLimit < (playerData.getClaimTypeCount(type) + 1)) {
                 GriefDefenderPlugin.sendMessage(player, GriefDefenderPlugin.getInstance().messageData.getMessage(MessageStorage.CREATE_FAILED_CLAIM_LIMIT));
                 return;
             }
@@ -1093,7 +1110,6 @@ public class PlayerEventHandler implements Listener {
             return;
         }
 
-        final ClaimType type = PlayerUtil.getInstance().getClaimTypeFromShovel(playerData.shovelMode);
         if ((type == ClaimTypes.BASIC || type == ClaimTypes.TOWN) && GriefDefenderPlugin.getGlobalConfig().getConfig().economy.economyMode) {
             // Check current economy mode cost
             final Double economyBlockCost = playerData.getInternalEconomyBlockCost();

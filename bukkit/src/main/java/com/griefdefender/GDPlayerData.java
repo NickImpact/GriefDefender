@@ -108,7 +108,7 @@ public class GDPlayerData implements PlayerData {
     public Instant recordChatTimestamp;
     public Instant commandInputTimestamp;
     public String commandInput;
-    public Consumer<CommandSender> trustAddConsumer;
+    public Consumer<CommandSender> commandConsumer;
 
     // Always ignore active contexts by default
     // This prevents protection issues when other plugins call getActiveContext
@@ -744,6 +744,8 @@ public class GDPlayerData implements PlayerData {
         this.claimResizing = null;
         this.claimSubdividing = null;
         this.visualClaimId = null;
+        this.commandInputTimestamp = null;
+        this.recordChatTimestamp = null;
         if (this.visualRevertTask != null) {
             this.visualRevertTask.cancel();
             this.visualRevertTask = null;
